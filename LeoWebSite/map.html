@@ -1,0 +1,94 @@
+
+<!DOCTYPE html "-//W3C//DTD XHTML 1.0 Strict//EN" 
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Google Maps JavaScript API Example</title>
+    <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAJjp5HqeGSOCUnjontfPbGxSN08ovpR74lwRf2nEbW4tP9ymaRBTvO9ZTtINMJKQOyXUlVo0F9-D1_g&sensor=true"
+            type="text/javascript"></script>
+    <script type="text/javascript">
+
+
+    var myMap ;
+    var myMarker;
+    function initialize() {
+      if (GBrowserIsCompatible()) {
+      	myMap = new GMap2(document.getElementById("map_canvas"));
+        var myLatLng = new GLatLng(25.017889, 121.478173);
+		myMap.setCenter(myLatLng, 18);
+		myMap.addControl(new GLargeMapControl());
+		document.getElementById('inLatLng').value = myLatLng.toString();
+
+	 	myMarker = new GMarker( myLatLng );
+		myMap.addOverlay( myMarker );
+      }
+      
+      
+  
+		GEvent.addListener(myMap, "click", function( overlay, point ){
+	      if(point){
+    	   //設定標註座標
+	       myMarker.setLatLng(point);
+    	   document.getElementById('inLatLng').value = point.toString();
+    		myMap.openInfoWindow(point,document.createTextNode(point.toString()));
+      		}
+     	});
+      
+
+                   
+    }
+    
+    
+
+function addressGps() {
+
+ var myGeocoder = new GClientGeocoder();
+ var address = document.getElementById('address').value;
+ myGeocoder.getLatLng(address, function getRequest( point ){
+       if(!point){
+        alert('這個地址 Google 說不知道！');
+       }else{
+        //移動地圖中心點
+       myMap.panTo( point );
+        //設定標註座標
+        myMarker.setLatLng(point);
+        myMarker.setImage("http://dl.dropbox.com/u/15689886/LeoWebSite/img/hearts-icon.png")
+        
+       // myMap.addOverlay( myMarker );
+        document.getElementById('inLatLng').value = point.toString();
+        
+        //增加說明
+        //myMap.openInfoWindowHtml(point,"<h1>這是我們婚禮的場地喔~<h1><br/><img src='http://a4.sphotos.ak.fbcdn.net/hphotos-ak-snc6/251627_228200257191769_100000053890804_1010110_3497391_n.jpg' width=400px hheight=275px>");
+        myMap.openInfoWindowHtml(point,"<iframe width='560' height='349' src='http://www.youtube.com/embed/oCZSwwSlO2A' frameborder='0' allowfullscreen></iframe>");
+    
+       }
+      });
+}
+
+
+
+
+    </script>
+  </head>
+  <body onload="initialize()" onunload="GUnload()">
+    <div id="map_canvas" style="width: 100%; height: 80%"></div><br/>
+    Address︰<input id="address" name="address" type="text" size="40" value="新北市板橋區中山路222號" />
+<input name="button" type="button" value="Search" onclick="addressGps();" /><br\>
+    
+    LatLng︰<input id="inLatLng" name="inLatLng" type="text" size="40" value="" />
+    <p>
+    Google map api key
+ABQIAAAAJjp5HqeGSOCUnjontfPbGxSN08ovpR74lwRf2nEbW4tP9ymaRBTvO9ZTtINMJKQOyXUlVo0F9-D1_g
+sensor 參數，以指出此應用程式是否使用感應器來判斷使用者的位置。
+「縮放等級」，定義目前檢視的解析度。在一般地圖檢視中，縮放等級最低為 0 (可顯示全世界)，最高則為 19 (可看到個別的建築物)
+G_NORMAL_MAP- 預設檢視
+G_SATELLITE_MAP - 顯示「Google 地球」衛星圖片
+G_HYBRID_MAP - 顯示一般和衛星檢視的混合圖
+G_DEFAULT_MAP_TYPES - 這三種類型的陣列，在反覆操作時很有用
+您可以使用 GMap2 物件的 setMapType() 方法來設定地圖類型
+    </p>
+    
+		
+  </body>
+</html>
