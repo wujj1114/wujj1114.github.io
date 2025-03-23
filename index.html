@@ -38,6 +38,22 @@
             flex-direction: column;
             justify-content: center;
         }
+              .portfolio-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .portfolio-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .portfolio-item p {
+            margin-top: 10px;
+            font-size: 14px;
+        }
     </style>
     
 </head>
@@ -118,15 +134,15 @@
             <div class="container">
                 <h2>作品</h2>
             <div class="row">
-                <div class="col-md-4 text-center">
+                <div class="col-md-4 text-center portfolio-item">
                     <a href="https://www.zgn.com.tw/LogIn.aspx"><img src="線上測驗.png" class="img-fluid" alt="智耕農線上測驗系統"></a>
                     <p>線上測驗系統，提供課程學員登入後測驗自己學習的狀況，並提供了歷次測驗的相關統計資訊及錯題再次測驗等功能...</p>
                 </div>
-                <div class="col-md-4 text-center">
+                <div class="col-md-4 text-center portfolio-item">
                     <a href="https://www.zgn.com.tw/elearning/"><img src="影音學習平台.png" class="img-fluid" alt="智耕農影音學習平台"></a>
                     <p>影音學習平台，提供學員線上播放影片</p>
                 </div>
-                <div class="col-md-4 text-center">
+                <div class="col-md-4 text-center portfolio-item">
                     <a href="https://github.com/wujj1114/FileWatcher"> <img src="FileWatcher.png" class="img-fluid" alt="FileWatcher"></a>
                     <p>FileWatcher小工具，本程式主要目的是用來監控資料夾中檔案的新增、修改、刪除的情形 可以用在對外服務的web上，監控資料夾以避免被上傳惡意檔案。</p>
                 </div>
