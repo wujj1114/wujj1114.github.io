@@ -67,11 +67,12 @@
 <body >
 
     <nav id="sidebar">
-        <a href="#home">主頁</a>
+        <a href="#home">嗨!</a>
         <a href="#about">自我介紹</a>
         <a href="#experience">經歷</a>
         <a href="#projects">作品</a>
         <a href="#contact">聯絡資訊</a>
+        <a href="#prictice">課程練習</a>
     </nav>
 
     <div class="content">
@@ -170,6 +171,34 @@
                     <p>個人網頁: <a href="https://wujj1114.github.io/" target="_blank">https://wujj1114.github.io/</a></p>
                 </div>
             </section>
+            <section id="projects" class="section bg-light">
+                <div class="container">
+                    <h2>課程練習</h2>
+                    <p>這裡是一些課程練習的範例</p>
+                    <h4>1. Javascript parse JSON</h4>
+                <ol id="demo">
+                        
+                </ol>
+                <script>
+                     let tmp="";
+                    let t = '{  "ISO_Data":['+
+                        '{"country_name":"Taiwan","population":"23,568,378"},'+
+                        '{"country_name":"Japan", "population":"122,797,230"},'+
+                        '{"country_name":"Korea", "population":"51,752,676"}'+
+                        '] }';
+                    let obj = JSON.parse(t);
+                    for(let i=0; i<obj.ISO_Data.length; i++){
+                       
+                       
+                        tmp +="<li>"+ obj.ISO_Data[i].country_name + " : " + obj.ISO_Data[i].population + "</li>";
+                    }
+                    document.getElementById("demo").innerHTML = tmp;
+                    </script>
+            
+
+                </section>
     </div>
+ 
+    
 </body>
 </html>
