@@ -515,7 +515,7 @@
             <div class="container">
                <h3>農產品交易行情</h3>
                 <style>
-                    #map { height: 400px; width: 100%; } /* 地圖容器樣式 */
+                    #map { height: 800px; width: 100%; } /* 地圖容器樣式 */
                 </style>
                 <div id="map"></div>
                 <!-- 初始化地圖 -->
@@ -526,7 +526,7 @@
                 <script>
                 function initMap() {
                     // 地圖中心位置
-                    const center = { lat: 25.0330, lng: 121.5654 };
+                    const center = { lat: 24.5330, lng: 121.5654 };
 
                     // 建立地圖
                     const map = new google.maps.Map(document.getElementById("map"), {
@@ -537,86 +537,120 @@
                     // 各地的市場
                     const locations = [
                                         {
+                                            "id": "104",
+                                            "市場名稱": "台北二",
                                             "name": "臺北市第二果菜批發市場",
                                             "addr": "臺北市中山區民族東路336號",
                                             "position": { lat: 25.068055342656, lng: 121.537364010729}
                                         },
                                         {
+                                            "id": "109",
+                                            "市場名稱": "台北一",
                                             "name": "臺北市第一果菜批發市場",
                                             "addr": "台北市萬華區萬大路533號",
                                             "position": { lat: 25.0189367648448, lng: 121.498045080042}
                                         },
                                         {
+                                            "id": "220",
+                                            "市場名稱": "板橋區",
                                             "name": "板橋果菜市場",
                                             "addr": "新北市板橋區板城路1000號",
                                             "position": { lat: 25.0205161162526, lng: 121.449126637713}
                                         },
                                         {
+                                            "id": "241",
+                                            "市場名稱": "三重區",
                                             "name": "三重果菜市場",
                                             "addr": "新北市三重區中正北路111號",
                                             "position": { lat: 25.0652298210453, lng: 121.487541495386}
                                         },
                                         {
+                                            "id": "260",
+                                            "市場名稱": "宜蘭市",
                                             "name": "宜蘭果菜批發市埸",
                                             "addr": "宜蘭縣宜蘭市黎明二路1號",
                                             "position": { lat: 24.7377889359596, lng: 121.776165126061}
                                         },
                                         {
+                                            "id": "338",
+                                            "市場名稱": "桃農",
                                             "name": "桃農綜合農產品批發市場",
                                             "addr": "桃園市蘆竹區文中路一段107號",
                                             "position": { lat: 24.9906248873252, lng: 121.269219210726}
                                         },
                                         {
+                                            "id": "400",
+                                            "市場名稱": "台中市",
                                             "name": "台中果菜市場",
                                             "addr": "台中市西屯區環中路一段2151號",
                                             "position": { lat: 24.1997658706663, lng: 120.658181295359}
                                         },
                                         {
+                                            "id": "420",
+                                            "市場名稱": "豐原區",
                                             "name": "豐原果菜批發市場",
                                             "addr": "台中市豐原區豐原大道八段369號",
                                             "position": { lat: 24.2529302988238, lng: 120.703448110703}
                                         },
                                         {
+                                            "id": "512",
+                                            "市場名稱": "永靖鄉",
                                             "name": "永靖鄉果菜市場",
                                             "addr": "彰化縣永靖鄉西門路116號",
                                             "position": { lat: 23.9229039078048, lng: 120.542937246674}
                                         },
                                         {
+                                            "id": "514",
+                                            "市場名稱": "溪湖鎮",
                                             "name": "溪湖鎮果菜市場",
                                             "addr": "彰化縣溪湖鎮長青街22號",
                                             "position": { lat: 23.9574964644343, lng: 120.486031680009}
                                         },
                                         {
+                                            "id": "540",
+                                            "市場名稱": "南投市",
                                             "name": "南投果菜市場",
                                             "addr": "南投縣南投市育樂路120號",
                                             "position": { lat: 23.9128924605182, lng: 120.68993879535}
                                         },
                                         {
+                                            "id": "648",
+                                            "市場名稱": "西螺鎮",
                                             "name": "西螺農產品市場",
                                             "addr": "雲林縣西螺鎮新豐里福來路38號",
                                             "position": { lat: 23.7834371309346, lng: 120.447961670418}
                                         },
                                         {
+                                            "id": "800",
+                                            "市場名稱": "高雄市",
                                             "name": "高雄果菜市場",
                                             "addr": "高雄市三民區民族一路100號",
                                             "position": { lat: 22.6445432338213, lng: 120.315613157779}
                                         },
                                         {
+                                            "id": "830",
+                                            "市場名稱": "鳳山區",
                                             "name": "鳳山果菜市場",
                                             "addr": "高雄市鳳山區五甲一路451號",
                                             "position": { lat: 22.6137193712767, lng: 120.35185603764}
                                         },
                                         {
+                                            "id": "900",
+                                            "市場名稱": "屏東市",
                                             "name": "屏東市果菜市場",
                                             "addr": "屏東縣屏東市和生路二段221號",
                                             "position": { lat: 22.6524747570294, lng: 120.480085921451}
                                         },
                                         {
+                                            "id": "930",
+                                            "市場名稱": "台東市",
                                             "name": "臺東果菜市場",
                                             "addr": "台東縣台東市濟南街61巷180號",
                                             "position": { lat: 22.7674992583445, lng: 121.139345595316}
                                         },
                                         {
+                                            "id": "950",
+                                            "市場名稱": "花蓮市",
                                             "name": "花蓮市果菜市場",
                                             "addr": "花蓮縣吉安鄉中央路三段403號",
                                             "position": { lat: 23.9851062430135, lng: 121.58524601018}
@@ -625,13 +659,65 @@
 
                     // 加入 markers
                     locations.forEach(loc => {
-                    const marker = new google.maps.Marker({
-                        position: loc.position,
-                        map: map,
-                        title: loc.name
-                    });
+                        const marker = new google.maps.Marker({
+                            position: loc.position,
+                            map: map,
+                            title: loc.name,
+                            icon: {
+                                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                                    <svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="20" cy="20" r="20" fill="#4CAF50" stroke="#fff" stroke-width="3"/>
+                                        <text x="20" y="26" text-anchor="middle" fill="white" font-size="12" font-weight="bold">${loc.市場名稱}</text>
+                                    </svg>
+                                `),
+                                scaledSize: new google.maps.Size(40, 40)
+                            }
+                        });
+                        marker.addListener('click', function() {
+                           showInfoWindow(marker, loc);
+                        });
                     });
                 }
+
+            function showInfoWindow(marker, market) {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: createInfoWindowContent(market)
+                });
+
+                infoWindow.open(map, marker);
+
+                // 當 InfoWindow 開啟後，設置事件監聽器
+                google.maps.event.addListener(infoWindow, 'domready', () => {
+                    setupProductSelector(market.id);
+                });
+            }
+
+        function createInfoWindowContent(market) {
+            return `
+                <div class="info-content">
+                    <div class="market-title">${market.name}</div>
+                    <div class="product-selector">
+                        <label for="product-select-${market.id}">選擇農產品：</label>
+                        <select id="product-select-${market.id}>
+                            <option value="">請選擇...</option>
+                            <option value="X69">蘋果</option>
+                            <option value="A1">香蕉</option>
+                            <option value="R1">芒果</option>
+                            <option value="LA1">高麗菜</option>
+                            <option value="P1">珍珠芭</option>
+                        </select>
+                    </div>
+                    <div id="chart-container-${market.id} class="chart-container" style="display: none;">
+                        <canvas id="price-chart-${market.id}></canvas>
+                    </div>
+                    <div id="loading-${market.id} class="loading" style="display: none;">
+                        載入中...
+                    </div>
+                </div>
+            `;
+        }
+            
+
                 </script>
 
 
