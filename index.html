@@ -523,8 +523,7 @@
                 src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAXtirCE79BsUqW0OORgORU3RalzYgB9Ww&callback=initMap">
 
                 </script>
-                <script>
-                function initMap() {
+                <script>                function initMap() {
                     // 地圖中心位置
                     const center = { lat: 24.5330, lng: 121.5654 };
 
@@ -533,6 +532,9 @@
                     zoom: 9,
                     center: center,
                     });
+                    
+                    // 追蹤目前開啟的 InfoWindow
+                    window.currentInfoWindow = null;
 
                     // 各地的市場
                     const locations = [
@@ -677,47 +679,244 @@
                            showInfoWindow(marker, loc);
                         });
                     });
+                }            function showInfoWindow(marker, market) {
+                // 先關閉之前開啟的 InfoWindow
+                if (window.currentInfoWindow) {
+                    window.currentInfoWindow.close();
+                    
+                    // 如果有圖表，也一並銷毀
+                    if (window.currentChart) {
+                        window.currentChart.destroy();
+                        window.currentChart = null;
+                    }
                 }
-
-            function showInfoWindow(marker, market) {
+                
                 const infoWindow = new google.maps.InfoWindow({
                     content: createInfoWindowContent(market)
                 });
 
                 infoWindow.open(map, marker);
+                
+                // 更新目前開啟的 InfoWindow
+                window.currentInfoWindow = infoWindow;
 
                 // 當 InfoWindow 開啟後，設置事件監聽器
                 google.maps.event.addListener(infoWindow, 'domready', () => {
                     setupProductSelector(market.id);
                 });
+                
+                // 當 InfoWindow 關閉時，清理全域變數
+                google.maps.event.addListener(infoWindow, 'closeclick', () => {
+                    window.currentInfoWindow = null;
+                    
+                    // 如果有圖表，也一併銷毀
+                    if (window.currentChart) {
+                        window.currentChart.destroy();
+                        window.currentChart = null;
+                    }
+                });
+            }
+            function createInfoWindowContent(market) {
+                return `
+                    <div class="info-content" style="width: 200px; height:auto;">
+                        <div class="market-title">${market.name}</div>
+                        <div class="product-selector">
+                            <label for="product-select-${market.id}">選擇農產品：</label>
+                            <select id="product-select-${market.id}">
+                                <option value="">請選擇...</option>
+                                <option value="高麗菜">高麗菜</option>
+                                <option value="青江菜">青江菜</option>
+                                <option value="青蔥">青蔥</option>
+                                <option value="絲瓜">絲瓜</option>
+                                <option value="小白菜">小白菜</option>
+                            </select>
+                        </div>
+                        <div id="chart-container-${market.id}" class="chart-container" style="display: none;">
+                            <canvas id="price-chart-${market.id}" width="200" height="200"></canvas>
+                        </div>
+                        <div id="loading-${market.id}" class="loading" style="display: none;">
+                            載入中...
+                        </div>
+                    </div>
+                `;
+            }
+            function setupProductSelector(marketId) {
+                const selectElement = document.getElementById(`product-select-${marketId}`);
+                
+                if (selectElement) {
+                    selectElement.addEventListener('change', (event) => {
+                        const selectedProduct = event.target.value;
+                        if (selectedProduct) {
+                            console.log(`市場ID: ${marketId}, 作物名稱: ${selectedProduct}`);
+                            loadProductData(selectedProduct, marketId);
+                        } else {
+                            hideChart(marketId);
+                        }
+                    });
+                } else {
+                    console.error(`找不到選擇器元素: product-select-${marketId}`);
+                }
+            } 
+            function hideChart(marketId) {
+                const chartContainer = document.getElementById(`chart-container-${marketId}`);
+                if (chartContainer) {
+                    chartContainer.style.display = 'none';
+                    
+                    if (window.currentChart) {
+                        window.currentChart.destroy();
+                        window.currentChart = null;
+                    }
+                }
             }
 
-        function createInfoWindowContent(market) {
-            return `
-                <div class="info-content">
-                    <div class="market-title">${market.name}</div>
-                    <div class="product-selector">
-                        <label for="product-select-${market.id}">選擇農產品：</label>
-                        <select id="product-select-${market.id}>
-                            <option value="">請選擇...</option>
-                            <option value="X69">蘋果</option>
-                            <option value="A1">香蕉</option>
-                            <option value="R1">芒果</option>
-                            <option value="LA1">高麗菜</option>
-                            <option value="P1">珍珠芭</option>
-                        </select>
-                    </div>
-                    <div id="chart-container-${market.id} class="chart-container" style="display: none;">
-                        <canvas id="price-chart-${market.id}></canvas>
-                    </div>
-                    <div id="loading-${market.id} class="loading" style="display: none;">
-                        載入中...
-                    </div>
-                </div>
-            `;
-        }
-            
+                        async function loadData() {
+                const sheetUrl = 'https://docs.google.com/spreadsheets/d/1FAiJ1BF1WDQFbPJ2NIR5O8qwVJXialYfbx2AzLjycag/gviz/tq?gid=814241411&tqx=out:json';
 
+                // 計算近 7 天日期字串（民國格式，如 114.05.26）
+                const today = new Date();
+                const dateStrings = Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    const rocYear = d.getFullYear() - 1911;
+                    return `${rocYear}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+                });
+
+                try {
+                    const response = await fetch(sheetUrl);
+                    const text = await response.text();
+                    const jsonText = text.match(/google\.visualization\.Query\.setResponse\(([\s\S\w]+)\);/)[1];
+                    const rawData = JSON.parse(jsonText);
+
+                    const cols = rawData.table.cols.map(col => col.label);
+                    const rows = rawData.table.rows.map(row => {
+                        const obj = {};
+                            row.c.forEach((cell, i) => {
+                                obj[cols[i]] = cell ? cell.v : null;
+                            });
+                        return obj;
+                        });
+
+                    // 過濾「交易日期」欄位屬於近 7 天的資料
+                    const filteredRows = rows.filter(item => dateStrings.includes(item['交易日期']));
+
+                    return filteredRows;
+                } catch (error) {
+                    console.error('資料載入失敗:', error);
+                    return [];
+                }
+            }
+            
+            const cropdata = loadData();
+            cropdata.then(data => {
+                if (data.length === 0) {
+                    alert('沒有找到相關資料');
+                } else {
+                    console.log('資料載入成功:', data);
+                }
+            });
+            
+            function loadProductData(corpName, marketId) {
+                const loadingElement = document.getElementById(`loading-${marketId}`);
+                const chartContainer = document.getElementById(`chart-container-${marketId}`);
+                
+                if (loadingElement && chartContainer) {
+                    loadingElement.style.display = 'block';
+                    chartContainer.style.display = 'none';
+                    
+                    // API 獲取資料
+                    setTimeout(() => {
+                        loadingElement.style.display = 'none';
+                        chartContainer.style.display = 'block';
+                        
+                        createPriceChart(marketId, corpName);
+                    }, 1000);
+                }
+            }
+              function createPriceChart(marketId, corpName) {
+                const canvas = document.getElementById(`price-chart-${marketId}`);
+                if (!canvas) return;
+                
+                cropdata.then(data => {
+                    // 過濾資料
+                    const filteredData = data.filter(item => item['作物名稱'] === corpName && item['市場代號'] == marketId);
+                    console.log('取得資料:', filteredData);
+
+                    // 計算近 7 天日期字串（民國格式，如 114.05.26）- 固定產生完整7天的日期標籤
+                    const today = new Date();
+                    const last7Days = Array.from({ length: 7 }, (_, i) => {
+                        const d = new Date(today);
+                        d.setDate(today.getDate() - i);
+                        const rocYear = d.getFullYear() - 1911;
+                        return {
+                            dateObj: d,
+                            dateString: `${rocYear}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+                        };
+                    }).sort((a, b) => a.dateObj - b.dateObj); // 按日期升序排序
+                    
+                    // 提取完整的7天日期標籤
+                    const labels = last7Days.map(d => d.dateString);
+                    
+                    // 為每個日期找對應的價格，如果沒有資料則設為0（表示休市）
+                    const prices = labels.map(label => {
+                        const matchedData = filteredData.find(item => item['交易日期'] === label);
+                        return matchedData ? parseFloat(matchedData['平均價']) || 0 : 0;
+                    });
+                    
+                    // 繪製圖表
+                    const chartData = {
+                        labels: labels,
+                        datasets: [{
+                            label: '平均價格 (元/公斤)',
+                            data: prices,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 1,
+                            tension: 0.2,
+                            fill: false
+                        }]
+                    };
+                    
+                    if (window.currentChart) {
+                        window.currentChart.destroy();
+                    }
+                      window.currentChart = new Chart(canvas, {
+                        type: 'bar',
+                        data: chartData,
+                        options: {
+                            responsive: false,
+                            maintainAspectRatio: false,
+                            width: 200,
+                            height: 200,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: `${corpName} 價格趨勢`
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const value = context.raw;
+                                            return value === 0 ? '休市' : `平均價格: ${value} 元/公斤`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                });
+
+
+                
+                
+            }
+            
+        
+ 
                 </script>
 
 
