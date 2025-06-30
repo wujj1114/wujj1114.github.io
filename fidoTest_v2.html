@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIDO Key 運作狀態測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px; /* 圓角更明顯 */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* 陰影更深 */
+            text-align: center;
+            width: 100%;
+            max-width: 650px; /* 稍微寬一點 */
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 2em;
+        }
+        p {
+            color: #555;
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+        strong {
+            color: #34495e;
+        }
+        button {
+            background-color: #28a745; /* 綠色按鈕 */
+            color: white;
+            padding: 14px 30px; /* 稍大一點 */
+            border: none;
+            border-radius: 8px; /* 圓角更明顯 */
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-top: 25px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        button:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .result-area {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #ecf0f1; /* 淺灰色背景 */
+            border-radius: 10px;
+            text-align: left;
+            word-break: break-all;
+            font-size: 0.9em;
+            min-height: 120px; /* 確保有足夠高度 */
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #bdc3c7;
+        }
+        .result-area h3 {
+            color: #34495e;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        .result-area pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 5px;
+            background-color: #fdfdfd;
+            border-radius: 5px;
+            border: 1px dashed #dcdcdc;
+            max-height: 300px; /* 限制高度，可滾動 */
+            overflow-y: auto;
+        }
+        .message-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: left;
+            border-left: 5px solid;
+            line-height: 1.5;
+        }
+        .success-message {
+            background-color: #e6ffe6;
+            color: #1a6d3b;
+            border-color: #28a745;
+        }
+        .error-message {
+            background-color: #ffe6e6;
+            color: #cc0000;
+            border-color: #dc3545;
+        }
+        .info-message {
+            background-color: #e6f7ff;
+            color: #0066cc;
+            border-color: #007bff;
+        }
+        .aaguid-info {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px dotted #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FIDO Key 運作狀態測試</h1>
+        <p>
+            點擊下方按鈕，瀏覽器將嘗試與您的 <strong>FIDO Key</strong> 或裝置內建的 <strong>WebAuthn 驗證器</strong>互動，
+            模擬註冊一個憑證。如果您的 FIDO Key 正常，您會收到瀏覽器的提示，
+            完成互動後，相關數據將會顯示在下方。
+        </p>
+        <p>
+            <strong>注意：</strong>此操作不會將任何憑證儲存在任何地方，
+            僅用於測試您的 FIDO Key 是否能正常響應 WebAuthn 請求。
+        </p>
+        <button id="testButton">測試我的 FIDO Key</button>
+
+        <div id="messageArea" class="message-area info-message">
+            請點擊「測試我的 FIDO Key」按鈕開始。
+        </div>
+
+        <div class="result-area">
+            <h3>FIDO Key 響應數據：</h3>
+            <pre id="fidoKeyResponseData">
+                成功響應後，FIDO Key 返回的數據將會顯示在這裡。
+            </pre>
+            <div class="aaguid-info">
+                <p><strong>關於廠商資訊：</strong></p>
+                <p>
+                    基於 WebAuthn 的安全與隱私設計，瀏覽器前端 JavaScript 無法直接讀取 FIDO Key 的<strong>廠商名稱</strong>或<strong>具體型號</strong>。
+                    但響應數據中的 `authenticatorData` 可能包含 **AAGUID (Authenticator Attestation GUID)**，
+                    這是一個唯一的識別碼，用於區分不同的驗證器模型。
+                </p>
+                <p>
+                    若要將 AAGUID 轉換為可讀的廠商資訊，通常需要將其發送到後端伺服器，
+                    並在後端查詢 FIDO Alliance 的元數據服務或其他資料庫。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const testButton = document.getElementById('testButton');
+        const messageArea = document.getElementById('messageArea');
+        const fidoKeyResponseData = document.getElementById('fidoKeyResponseData');
+        const rpId = window.location.hostname; // 使用當前頁面的域名作為 Relying Party ID
+        const userId = new Uint8Array(16); // 隨機生成一個 16 位元組的使用者 ID
+        const userName = `testuser_${Date.now()}`; // 隨機生成一個使用者名稱
+        const userDisplayName = `測試使用者 ${Date.now()}`; // 隨機生成一個顯示名稱
+
+        // 輔助函數：將 ArrayBuffer 轉換為 Uint8Array 陣列（方便 JSON 序列化和顯示）
+        function arrayBufferToUint8ArrayArray(buffer) {
+            if (!buffer) return null;
+            return Array.from(new Uint8Array(buffer));
+        }
+
+        // 輔助函數：將 ArrayBuffer 轉換為 Base64 URL 字串（WebAuthn 常用格式）
+        function arrayBufferToBase64Url(buffer) {
+            if (!buffer) return null;
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        // 輔助函數：從 AuthenticatorData 提取 AAGUID (前 16 位元組)
+        // 更多關於 authenticatorData 的解析需要 Cbor 解碼，這裡僅提取前 16 位元組
+        function getAAGUIDFromAuthenticatorData(authenticatorDataBuffer) {
+            if (!authenticatorDataBuffer || authenticatorDataBuffer.byteLength < 16) {
+                return null;
+            }
+            const aaguidBytes = authenticatorDataBuffer.slice(0, 16);
+            return arrayBufferToBase64Url(aaguidBytes);
+        }
+
+        // 生成 WebAuthn 挑戰 (隨機 32 位元組)
+        function generateChallenge() {
+            return window.crypto.getRandomValues(new Uint8Array(32)).buffer;
+        }
+
+        testButton.addEventListener('click', testFidoKey);
+
+        async function testFidoKey() {
+            testButton.disabled = true;
+            messageArea.className = 'message-area info-message';
+            messageArea.textContent = '正在準備測試... 請注意瀏覽器提示。';
+            fidoKeyResponseData.textContent = '等待您的 FIDO Key 響應...';
+
+            // 生成隨機使用者 ID
+            window.crypto.getRandomValues(userId);
+            const challenge = generateChallenge();
+
+            const publicKeyCredentialCreationOptions = {
+                challenge: challenge,
+                rp: {
+                    id: rpId, // 依賴方 ID，通常是您的域名
+                    name: "FIDO Key 測試站點",
+                },
+                user: {
+                    id: userId, // 必須是 Uint8Array 或 ArrayBuffer
+                    name: userName,
+                    displayName: userDisplayName,
+                },
+                pubKeyCredParams: [
+                    { alg: -7, type: "public-key" }, // ES256
+                    { alg: -257, type: "public-key" }, // RS256
+                ],
+                authenticatorSelection: {
+                    authenticatorAttachment: "cross-platform", // 允許外部 FIDO Key
+                    userVerification: "preferred", // 偏好使用者驗證 (PIN/指紋)
+                    residentKey: "preferred", // 偏好 resident key (Passkey)
+                    requireResidentKey: false, // 不強制要求 Resident Key
+                },
+                timeout: 60000, // 60秒超時
+                attestation: "direct", // 請求直接認證證明的 attestation 方式
+            };
+
+            try {
+                // 調用 WebAuthn API 創建憑證 (即註冊)
+                const credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions,
+                });
+
+                // 如果成功，FIDO Key 正常
+                messageArea.className = 'message-area success-message';
+                messageArea.textContent = '🎉 您的 FIDO Key 正常運作！請查看下方響應數據。';
+
+                // 提取並顯示響應數據
+                const responseData = {
+                    id: credential.id,
+                    rawId: arrayBufferToUint8ArrayArray(credential.rawId),
+                    type: credential.type,
+                    // response 包含實際的驗證器數據和簽名
+                    response: {
+                        clientDataJSON: arrayBufferToUint8ArrayArray(credential.response.clientDataJSON),
+                        authenticatorData: arrayBufferToUint8ArrayArray(credential.response.authenticatorData),
+                        signature: arrayBufferToUint8ArrayArray(credential.response.signature),
+                        // 註冊時會有 attestationObject
+                        attestationObject: arrayBufferToUint8ArrayArray(credential.response.attestationObject),
+                    },
+                    // 將 Base64 URL 編碼的 rawId 也顯示出來，方便檢查
+                    rawIdBase64Url: arrayBufferToBase64Url(credential.rawId),
+                    // 顯示原始挑戰 (為了檢查)
+                    challengeUsed: arrayBufferToUint8ArrayArray(challenge),
+                    // 新增 AAGUID 資訊
+                    detectedAAGUID: getAAGUIDFromAuthenticatorData(credential.response.authenticatorData)
+                };
+
+                fidoKeyResponseData.textContent = JSON.stringify(responseData, null, 2);
+
+            } catch (error) {
+                // FIDO Key 異常或使用者取消
+                messageArea.className = 'message-area error-message';
+                let errorMessageText = '測試失敗。';
+
+                if (error.name === 'NotAllowedError') {
+                    errorMessageText = '您取消了 FIDO Key 互動或權限被拒絕。';
+                } else if (error.name === 'SecurityError') {
+                    errorMessageText = '安全性錯誤：WebAuthn 只能在 HTTPS 環境下運行 (或 localhost)。';
+                } else if (error.name === 'AbortError') {
+                    errorMessageText = '操作被中止 (可能因逾時或瀏覽器問題)。';
+                }
+                else if (error.message) {
+                    errorMessageText += `錯誤訊息: ${error.message}`;
+                }
+                console.error("FIDO Key 測試錯誤:", error);
+                messageArea.textContent = errorMessageText;
+                fidoKeyResponseData.textContent = `錯誤：${errorMessageText}\n請檢查您的 FIDO Key 是否連接正常，或瀏覽器權限。`;
+            } finally {
+                testButton.disabled = false;
+            }
+        }
+
+        // 初始檢查 WebAuthn 支持性
+        function initialCheck() {
+            if (!window.PublicKeyCredential) {
+                messageArea.textContent = '您的瀏覽器不支持 WebAuthn API。請使用 Chrome, Firefox, Edge, Safari 等現代瀏覽器。';
+                messageArea.className = 'message-area error-message';
+                testButton.disabled = true;
+            } else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                messageArea.textContent = '安全性警告：WebAuthn API 僅能在 HTTPS 或 localhost 環境下運行。請使用本地伺服器或 HTTPS 網站。';
+                messageArea.className = 'message-area error-message';
+                testButton.disabled = true;
+            } else {
+                 messageArea.textContent = '瀏覽器支持 WebAuthn。準備就緒，請點擊「測試我的 FIDO Key」按鈕。';
+                 messageArea.className = 'message-area info-message';
+            }
+        }
+
+        initialCheck();
+    </script>
+</body>
+</html>

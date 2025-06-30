@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn 登入示範</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 400px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 25px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result-area {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            text-align: left;
+            word-break: break-all; /* 防止長字串溢出 */
+            font-size: 14px;
+        }
+        #result-area pre {
+            white-space: pre-wrap; /* 保持換行和空白，但允許自動換行 */
+            word-wrap: break-word; /* 允許長單詞斷開 */
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebAuthn 登入示範</h1>
+        <p>點擊按鈕，使用您的 FIDO Key 或其他驗證器登入。</p>
+        <button id="loginButton">使用 WebAuthn 登入</button>
+
+        <div id="result-area">
+            <h3>驗證器響應數據：</h3>
+            <pre id="webauthnResponseData">點擊「使用 WebAuthn 登入」按鈕後，結果將會顯示在這裡。</pre>
+            <p id="errorMessage" class="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        const loginButton = document.getElementById('loginButton');
+        const webauthnResponseData = document.getElementById('webauthnResponseData');
+        const errorMessage = document.getElementById('errorMessage');
+
+        loginButton.addEventListener('click', handleWebAuthnLogin);
+
+        // 輔助函數：將 ArrayBuffer 轉換為 Uint8Array 陣列（方便 JSON 序列化和顯示）
+        function arrayBufferToUint8ArrayArray(buffer) {
+            return Array.from(new Uint8Array(buffer));
+        }
+
+        async function handleWebAuthnLogin() {
+            loginButton.disabled = true; // 禁用按鈕防止重複點擊
+            webauthnResponseData.textContent = '正在獲取挑戰並等待驗證器響應...';
+            errorMessage.textContent = '';
+
+            try {
+                // 1. 模擬向後端請求挑戰
+                // 在真實應用中，這裡會是一個向 /api/get-webauthn-challenge 的 fetch 請求
+                // 後端會返回一個 PublicKeyCredentialRequestOptions 物件
+                const challengeResponse = await fetch('/api/get-webauthn-challenge', {
+                    method: 'POST', // 或 GET，取決於您的後端設計
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // 通常登入挑戰不需要前端提供太多資訊，除非有特定的用戶名
+                    body: JSON.stringify({ /* 例如：username: 'testuser' */ })
+                });
+
+                if (!challengeResponse.ok) {
+                    throw new Error(`獲取挑戰失敗: ${challengeResponse.statusText}`);
+                }
+
+                const challengeOptions = await challengeResponse.json();
+
+                // WebAuthn 挑戰中的 'challenge' 和 'user.id' 必須是 ArrayBuffer
+                // 後端通常會將它們以 Base64 URL 形式傳送，前端需要解碼
+                // 這裡假設後端已經處理好或者我們手動轉換
+                // 實際情況中，通常會使用一個 WebAuthn 庫來處理這些轉換
+                // 例如：@simplewebauthn/browser 或 @simplewebauthn/server (搭配後端)
+                if (challengeOptions.challenge) {
+                    challengeOptions.challenge = Uint8Array.from(atob(challengeOptions.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)).buffer;
+                }
+                 if (challengeOptions.allowCredentials) {
+                    challengeOptions.allowCredentials = challengeOptions.allowCredentials.map(cred => {
+                        if (cred.id) {
+                            cred.id = Uint8Array.from(atob(cred.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)).buffer;
+                        }
+                        return cred;
+                    });
+                }
+                // 2. 調用 WebAuthn API (navigator.credentials.get)
+                const credential = await navigator.credentials.get({
+                    publicKey: challengeOptions
+                });
+
+                // 3. 提取並顯示驗證器返回的數據
+                const authResult = {
+                    id: credential.id,
+                    rawId: arrayBufferToUint8ArrayArray(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        clientDataJSON: arrayBufferToUint8ArrayArray(credential.response.clientDataJSON),
+                        authenticatorData: arrayBufferToUint8ArrayArray(credential.response.authenticatorData),
+                        signature: arrayBufferToUint8ArrayArray(credential.response.signature),
+                        // userHandle 可能是 null
+                        userHandle: credential.response.userHandle ? arrayBufferToUint8ArrayArray(credential.response.userHandle) : null
+                    }
+                };
+
+                webauthnResponseData.textContent = JSON.stringify(authResult, null, 2);
+
+                // 4. (在實際應用中) 將這些數據發送回後端進行驗證
+                // const verifyResponse = await fetch('/api/verify-webauthn-credential', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json'
+                //     },
+                //     body: JSON.stringify(authResult)
+                // });
+                // const verifyResult = await verifyResponse.json();
+                // if (verifyResult.success) {
+                //     alert('登入成功！');
+                //     // 導向到使用者儀表板
+                //     window.location.href = '/dashboard';
+                // } else {
+                //     alert('登入失敗: ' + verifyResult.message);
+                // }
+
+            } catch (err) {
+                console.error("WebAuthn 登入失敗:", err);
+                let message = '登入過程中發生錯誤。';
+                if (err.name === 'NotAllowedError') {
+                    message = '使用者拒絕或取消了驗證。';
+                } else if (err.name === 'SecurityError') {
+                    message = '安全性錯誤，可能是瀏覽器環境不安全 (非 HTTPS) 或其他設定問題。';
+                } else if (err.message) {
+                    message = err.message;
+                }
+                errorMessage.textContent = message;
+                webauthnResponseData.textContent = '無數據。';
+            } finally {
+                loginButton.disabled = false; // 重新啟用按鈕
+            }
+        }
+    </script>
+</body>
+</html>
