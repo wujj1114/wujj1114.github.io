@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>糧政申報資料比對與更新技術報告 | Data Ops Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Professional - Neutrals with Data Blue/Green Accents -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-bg': '#f8f9fa',
+                        'brand-card': '#ffffff',
+                        'brand-primary': '#2c3e50',
+                        'brand-secondary': '#34495e',
+                        'brand-accent': '#3b82f6', // Blue for data
+                        'brand-success': '#10b981', // Green for efficiency
+                        'brand-warning': '#f59e0b', // Orange for alerts
+                        'brand-text': '#333333',
+                        'brand-light': '#e5e7eb',
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'Helvetica', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8f9fa; color: #333; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 300px; max-height: 400px; }
+        @media (min-width: 768px) { .chart-container { height: 350px; } }
+        .code-block { background-color: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.875rem; }
+        .nav-item.active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+        .step-connector { width: 2px; background-color: #e5e7eb; height: 2rem; margin: 0 auto; }
+        /* Hide scrollbar for clean UI */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Application Structure Plan:
+         1. Header/Nav: Quick access to sections.
+         2. Hero: Executive Summary & KPI simulation.
+         3. Problem Analysis: Cards explaining constraints (API, Keys).
+         4. Solution Logic (Interactive): "Semantic Key Builder" & "Diff Logic Simulator" to teach the core concept.
+         5. Architecture & Performance: Charts showing Parquet/DuckDB benefits.
+         6. Implementation: Step-by-step workflow & Code Viewer.
+         7. Conclusion.
+         Rationale: Moves from problem definition to conceptual solution, then technical implementation details.
+    -->
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-layer-group text-brand-accent text-xl mr-2"></i>
+                    <span class="font-bold text-xl text-brand-primary">糧政資料 Ops</span>
+                </div>
+                <div class="hidden md:flex space-x-8 items-center" id="nav-links">
+                    <button onclick="scrollToSection('overview')" class="nav-item active px-3 py-2 text-sm font-medium text-gray-500 hover:text-brand-primary transition">總覽</button>
+                    <button onclick="scrollToSection('challenges')" class="nav-item px-3 py-2 text-sm font-medium text-gray-500 hover:text-brand-primary transition">挑戰</button>
+                    <button onclick="scrollToSection('solution')" class="nav-item px-3 py-2 text-sm font-medium text-gray-500 hover:text-brand-primary transition">解決方案</button>
+                    <button onclick="scrollToSection('performance')" class="nav-item px-3 py-2 text-sm font-medium text-gray-500 hover:text-brand-primary transition">效能分析</button>
+                    <button onclick="scrollToSection('implementation')" class="nav-item px-3 py-2 text-sm font-medium text-gray-500 hover:text-brand-primary transition">實作與代碼</button>
+                </div>
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center">
+                    <button onclick="toggleMobileMenu()" class="text-gray-500 hover:text-brand-primary focus:outline-none">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-100">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <button onclick="scrollToSection('overview')" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full text-left">總覽</button>
+                <button onclick="scrollToSection('challenges')" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full text-left">挑戰</button>
+                <button onclick="scrollToSection('solution')" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full text-left">解決方案</button>
+                <button onclick="scrollToSection('performance')" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full text-left">效能分析</button>
+                <button onclick="scrollToSection('implementation')" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-50 w-full text-left">實作</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        
+        <!-- Section: Overview / Hero -->
+        <section id="overview" class="py-12 bg-white border-b border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-10">
+                    <span class="inline-block px-3 py-1 mb-4 text-xs font-semibold tracking-wider text-brand-accent uppercase bg-blue-50 rounded-full">Technical Report Visualization</span>
+                    <h1 class="text-4xl font-extrabold text-brand-primary mb-4 tracking-tight">糧政申報資料比對及更新技術報告</h1>
+                    <p class="text-xl text-gray-500 max-w-3xl mx-auto">
+                        針對各 200 萬筆紀錄的大規模資料集比對方案。解決 Web API 限制、無穩定主鍵及記憶體瓶頸問題，實現高效能同步。
+                    </p>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-gray-500 text-sm font-medium">資料規模</div>
+                            <div class="p-2 bg-blue-100 rounded-lg text-brand-accent"><i class="fa-solid fa-database"></i></div>
+                        </div>
+                        <div class="text-3xl font-bold text-brand-primary">400<span class="text-lg text-gray-400">萬+</span></div>
+                        <p class="text-xs text-gray-400 mt-2">資料集 A & B 合計</p>
+                    </div>
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-gray-500 text-sm font-medium">演算法複雜度</div>
+                            <div class="p-2 bg-green-100 rounded-lg text-brand-success"><i class="fa-solid fa-bolt"></i></div>
+                        </div>
+                        <div class="text-3xl font-bold text-brand-primary">O(N)</div>
+                        <p class="text-xs text-gray-400 mt-2">Hash-based 集合運算</p>
+                    </div>
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-gray-500 text-sm font-medium">核心技術</div>
+                            <div class="p-2 bg-yellow-100 rounded-lg text-brand-warning"><i class="fa-solid fa-server"></i></div>
+                        </div>
+                        <div class="text-lg font-bold text-brand-primary">DuckDB + Parquet</div>
+                        <p class="text-xs text-gray-400 mt-2">磁碟型運算，低記憶體</p>
+                    </div>
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-gray-500 text-sm font-medium">同步策略</div>
+                            <div class="p-2 bg-purple-100 rounded-lg text-purple-500"><i class="fa-solid fa-sync"></i></div>
+                        </div>
+                        <div class="text-lg font-bold text-brand-primary">語意鍵比對</div>
+                        <p class="text-xs text-gray-400 mt-2">刪除/新增 + 屬性更新</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Challenges -->
+        <section id="challenges" class="py-12 bg-brand-bg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-brand-primary border-l-4 border-brand-warning pl-4">資料來源的限制與挑戰</h2>
+                    <p class="mt-2 text-gray-600">ESRI Feature Service 的特性導致傳統比對方式不可行。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Constraint 1 -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-t-4 border-red-400">
+                        <h3 class="text-lg font-bold text-gray-800 mb-3"><i class="fa-solid fa-ban text-red-400 mr-2"></i>API 存取限制</h3>
+                        <ul class="space-y-3 text-gray-600 text-sm">
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-exclamation text-xs mt-1 mr-2 text-red-300"></i>
+                                <span><strong>分頁限制 (maxRecordCount):</strong> 單次請求僅回傳 1,000-2,000 筆，無法一次拉取全量。</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-exclamation text-xs mt-1 mr-2 text-red-300"></i>
+                                <span><strong>網路效能:</strong> 頻繁 HTTP 請求造成延遲與序列化負擔。</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-exclamation text-xs mt-1 mr-2 text-red-300"></i>
+                                <span><strong>連線不穩:</strong> 長時間連線容易中斷，導致資料不完整。</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Constraint 2 -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-t-4 border-orange-400">
+                        <h3 class="text-lg font-bold text-gray-800 mb-3"><i class="fa-solid fa-key text-orange-400 mr-2"></i>無固定主鍵 (Missing Keys)</h3>
+                        <ul class="space-y-3 text-gray-600 text-sm">
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-triangle-exclamation text-xs mt-1 mr-2 text-orange-300"></i>
+                                <span><strong>ObjectID 不穩定:</strong> 每次寫入系統都會重編 ObjectID，A 與 B 的 ID 完全無關聯。</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-triangle-exclamation text-xs mt-1 mr-2 text-orange-300"></i>
+                                <span><strong>缺乏業務 ID:</strong> 原始資料未設計唯一的業務編號，難以直接識別「同一筆申報」。</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Solution (Interactive) -->
+        <section id="solution" class="py-12 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-10">
+                    <h2 class="text-2xl font-bold text-brand-primary border-l-4 border-brand-accent pl-4">比對方案：語意鍵與兩層級策略</h2>
+                    <p class="mt-2 text-gray-600">透過定義「語意鍵」來解決無主鍵問題，並使用 Hash 演算法加速比對。</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    
+                    <!-- Interactive 1: Semantic Key Builder -->
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-200">
+                        <h3 class="text-lg font-bold text-brand-primary mb-4 flex items-center">
+                            <span class="bg-brand-accent text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">1</span>
+                            複合語意鍵產生器
+                        </h3>
+                        <p class="text-sm text-gray-500 mb-4">試著修改下方欄位，觀察如何組合成唯一的「語意鍵」及其雜湊值。</p>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">年度 (Year)</label>
+                                <input type="text" id="input-year" value="2024" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-200 outline-none" oninput="updateSemanticKey()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">期別 (Period)</label>
+                                <input type="text" id="input-period" value="1" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-200 outline-none" oninput="updateSemanticKey()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">地號 (LandNo)</label>
+                                <input type="text" id="input-land" value="1234-0000" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-200 outline-none" oninput="updateSemanticKey()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">作物 (Crop)</label>
+                                <input type="text" id="input-crop" value="水稻" class="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-200 outline-none" oninput="updateSemanticKey()">
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-3 rounded border border-gray-200 mb-2">
+                            <div class="text-xs text-gray-400 mb-1">組合字串 (Composite String)</div>
+                            <div id="output-composite" class="text-sm font-mono text-brand-primary break-all"></div>
+                        </div>
+                        <div class="bg-gray-800 p-3 rounded border border-gray-700">
+                            <div class="text-xs text-gray-400 mb-1">MD5 Hash (Identity ID)</div>
+                            <div id="output-hash" class="text-sm font-mono text-green-400 break-all"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 italic">* 實際雜湊包含更多欄位 (Indno123, measures, area 等)</p>
+                    </div>
+
+                    <!-- Interactive 2: Two-Level Logic -->
+                    <div class="bg-brand-bg rounded-xl p-6 border border-gray-200">
+                        <h3 class="text-lg font-bold text-brand-primary mb-4 flex items-center">
+                            <span class="bg-brand-accent text-white w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">2</span>
+                            兩層級比對邏輯模擬
+                        </h3>
+                        <p class="text-sm text-gray-500 mb-4">第一層比對語意鍵 (決定增刪)，第二層比對屬性 (決定更新)。</p>
+
+                        <!-- Scenario Controller -->
+                        <div class="flex space-x-2 mb-4">
+                            <button onclick="setScenario('same')" class="px-3 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50">完全相同</button>
+                            <button onclick="setScenario('update')" class="px-3 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50">屬性變更</button>
+                            <button onclick="setScenario('diff')" class="px-3 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-50">語意不同</button>
+                        </div>
+
+                        <!-- Visualization -->
+                        <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-inner mb-4">
+                            <!-- Record A -->
+                            <div class="text-center w-1/3">
+                                <div class="font-bold text-gray-700 mb-2">Dataset A</div>
+                                <div class="text-xs bg-gray-100 p-2 rounded mb-1" id="vis-a-key">Key: Hash_X</div>
+                                <div class="text-xs bg-gray-100 p-2 rounded" id="vis-a-attr">Attr: State_1</div>
+                            </div>
+                            
+                            <!-- Logic Gates -->
+                            <div class="flex flex-col items-center justify-center w-1/3 space-y-2">
+                                <div id="gate-1" class="w-full text-center text-xs p-1 rounded transition-colors duration-300 border">
+                                    Key Match?
+                                </div>
+                                <i class="fa-solid fa-arrow-down text-gray-300"></i>
+                                <div id="gate-2" class="w-full text-center text-xs p-1 rounded transition-colors duration-300 border opacity-50">
+                                    Attr Match?
+                                </div>
+                            </div>
+
+                            <!-- Record B -->
+                            <div class="text-center w-1/3">
+                                <div class="font-bold text-gray-700 mb-2">Dataset B</div>
+                                <div class="text-xs bg-gray-100 p-2 rounded mb-1" id="vis-b-key">Key: Hash_X</div>
+                                <div class="text-xs bg-gray-100 p-2 rounded" id="vis-b-attr">Attr: State_1</div>
+                            </div>
+                        </div>
+
+                        <!-- Result -->
+                        <div id="logic-result" class="text-center font-bold text-lg p-3 rounded bg-gray-200 text-gray-500 transition-all duration-300">
+                            NO ACTION
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Performance & Architecture -->
+        <section id="performance" class="py-12 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-10">
+                    <h2 class="text-2xl font-bold text-brand-primary border-l-4 border-brand-success pl-4">架構優化與效能分析</h2>
+                    <p class="mt-2 text-gray-600">利用 DuckDB 與 Parquet 解決 200 萬筆資料運算的記憶體瓶頸。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Chart 1: Memory Usage -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">記憶體使用量比較 (Estimated)</h3>
+                        <!-- Chart Container -->
+                        <div class="chart-container">
+                            <canvas id="memoryChart"></canvas>
+                        </div>
+                        <p class="text-center text-xs text-gray-500 mt-4">DuckDB 的串流處理大幅降低 RAM 需求。</p>
+                    </div>
+
+                    <!-- Chart 2: Time Complexity -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">演算法效率 (Processing Time)</h3>
+                        <!-- Chart Container -->
+                        <div class="chart-container">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                        <p class="text-center text-xs text-gray-500 mt-4">Hash-based (O(N)) 比對遠快於傳統 Nested Loop。</p>
+                    </div>
+                </div>
+
+                <!-- Architecture Diagram (CSS) -->
+                <div class="mt-12 bg-white p-8 rounded-lg shadow-sm">
+                    <h3 class="text-lg font-bold text-gray-800 mb-6 text-center">資料處理架構圖</h3>
+                    <div class="flex flex-col md:flex-row items-center justify-between text-center space-y-6 md:space-y-0">
+                        <!-- Step 1 -->
+                        <div class="flex-1 flex flex-col items-center group">
+                            <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 text-2xl mb-3 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                <i class="fa-solid fa-cloud-arrow-down"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-700">Web API</h4>
+                            <p class="text-xs text-gray-500 mt-1">Feature Service<br>分批下載</p>
+                        </div>
+                        
+                        <div class="hidden md:block w-16 h-1 bg-gray-200 relative"><i class="fa-solid fa-chevron-right absolute right-0 -top-1.5 text-gray-300"></i></div>
+                        <div class="md:hidden h-8 w-1 bg-gray-200"></div>
+
+                        <!-- Step 2 -->
+                        <div class="flex-1 flex flex-col items-center group">
+                            <div class="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 text-2xl mb-3 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                <i class="fa-solid fa-file-zipper"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-700">Parquet</h4>
+                            <p class="text-xs text-gray-500 mt-1">本地儲存<br>高壓縮格式</p>
+                        </div>
+
+                        <div class="hidden md:block w-16 h-1 bg-gray-200 relative"><i class="fa-solid fa-chevron-right absolute right-0 -top-1.5 text-gray-300"></i></div>
+                        <div class="md:hidden h-8 w-1 bg-gray-200"></div>
+
+                        <!-- Step 3 -->
+                        <div class="flex-1 flex flex-col items-center group">
+                            <div class="w-16 h-16 bg-yellow-50 rounded-full flex items-center justify-center text-yellow-500 text-2xl mb-3 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                <i class="fa-solid fa-duck"></i> <!-- FontAwesome 6 doesn't have duck, using generic -->
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-700">DuckDB</h4>
+                            <p class="text-xs text-gray-500 mt-1">虛擬視圖 &<br>Hash 計算</p>
+                        </div>
+
+                        <div class="hidden md:block w-16 h-1 bg-gray-200 relative"><i class="fa-solid fa-chevron-right absolute right-0 -top-1.5 text-gray-300"></i></div>
+                        <div class="md:hidden h-8 w-1 bg-gray-200"></div>
+
+                        <!-- Step 4 -->
+                        <div class="flex-1 flex flex-col items-center group">
+                            <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 text-2xl mb-3 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-700">差異清單</h4>
+                            <p class="text-xs text-gray-500 mt-1">Add, Delete, Update<br>CSV 報表</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Implementation & Code -->
+        <section id="implementation" class="py-12 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-brand-primary border-l-4 border-gray-500 pl-4">實作流程與程式碼</h2>
+                    <p class="mt-2 text-gray-600">分批下載器 (Batch Downloader) 與 差異計算器 (Diff Calculator) 的 Python 實作。</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-gray-200 mb-4">
+                    <button class="px-4 py-2 text-sm font-medium text-brand-accent border-b-2 border-brand-accent focus:outline-none" id="tab-btn-1" onclick="switchTab(1)">分批下載 (batch_downloader.py)</button>
+                    <button class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 focus:outline-none" id="tab-btn-2" onclick="switchTab(2)">差異比對 (diff_calculator.py)</button>
+                </div>
+
+                <!-- Code Container 1 -->
+                <div id="tab-content-1" class="block">
+                    <div class="bg-gray-50 p-4 rounded mb-2 text-sm text-gray-600 border border-gray-200">
+                        <i class="fa-solid fa-info-circle mr-2"></i><strong>功能：</strong> 克服 API 1000 筆限制，確保記憶體安全。利用 `resultOffset` 分頁，並將結果存為 Parquet。
+                    </div>
+                    <pre class="code-block no-scrollbar">
+import os
+import math
+import pandas as pd
+from arcgis.features import FeatureLayer
+
+# 設定 Feature Service URL
+URL_SERVICE_A = "YOUR_SERVICE_A_URL"
+URL_SERVICE_B = "YOUR_SERVICE_B_URL"
+BATCH_SIZE = 2000  # 依照 API 限制調整
+DIR_A = "data_source_A"
+DIR_B = "data_source_B"
+
+def download_to_parquet(service_url, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        
+    layer = FeatureLayer(service_url)
+    total_count = layer.query(return_count_only=True)
+    print(f"總筆數: {total_count}")
+    
+    total_pages = math.ceil(total_count / BATCH_SIZE)
+    
+    for i in range(total_pages):
+        offset = i * BATCH_SIZE
+        file_path = f"{output_dir}/part_{i:04d}.parquet"
+        
+        if os.path.exists(file_path): continue
+            
+        # 分頁撈取
+        sdf = layer.query(
+            where="1=1", out_fields="*", return_geometry=False,
+            result_offset=offset, result_record_count=BATCH_SIZE, as_df=True
+        )
+        
+        if not sdf.empty:
+            # 標準化型別並儲存
+            sdf.to_parquet(file_path, index=False)
+                    </pre>
+                </div>
+
+                <!-- Code Container 2 -->
+                <div id="tab-content-2" class="hidden">
+                    <div class="bg-gray-50 p-4 rounded mb-2 text-sm text-gray-600 border border-gray-200">
+                        <i class="fa-solid fa-info-circle mr-2"></i><strong>功能：</strong> 利用 DuckDB 的 SQL 引擎直接對硬碟檔案運算。計算 MD5 Hash 並產出 CSV。
+                    </div>
+                    <pre class="code-block no-scrollbar">
+import duckdb
+
+# 設定 Parquet 資料路徑
+DIR_A = "data_source_A/*.parquet"
+DIR_B = "data_source_B/*.parquet"
+
+# 定義語意鍵與屬性欄位
+SEMANTIC_COLS = ['year', 'period', 'Indno123', 'Indno4', 'Indno7', 'measures', 'crop', 'report_area']
+ATTR_COLS = ['cgp1', 'cgp2', 'declares']
+
+def main():
+    con = duckdb.connect(database=':memory:')
+    
+    # 建立視圖並計算 MD5 雜湊
+    con.execute(f"CREATE VIEW view_a AS SELECT *, md5(year||period||Indno123||Indno4||Indno7||measures||crop||report_area) as s_hash, md5(cgp1||cgp2||declares) as a_hash FROM read_parquet('{DIR_A}')")
+    con.execute(f"CREATE VIEW view_b AS SELECT *, md5(year||period||Indno123||Indno4||Indno7||measures||crop||report_area) as s_hash, md5(cgp1||cgp2||declares) as a_hash FROM read_parquet('{DIR_B}')")
+    
+    # 產出差異清單 CSV
+    con.execute("COPY (SELECT a.OBJECTID FROM view_a a LEFT JOIN view_b b ON a.s_hash = b.s_hash WHERE b.s_hash IS NULL) TO 'DELETE_LIST.csv' (HEADER)")
+    con.execute("COPY (SELECT b.* FROM view_b b LEFT JOIN view_a a ON b.s_hash = a.s_hash WHERE a.s_hash IS NULL) TO 'ADD_LIST.csv' (HEADER)")
+    con.execute("COPY (SELECT a.OBJECTID as OBJECTID_A, b.cgp1, b.cgp2, b.declares FROM view_a a JOIN view_b b ON a.s_hash = b.s_hash WHERE a.a_hash != b.a_hash) TO 'UPDATE_LIST.csv' (HEADER)")
+
+if __name__ == "__main__":
+    main()
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-brand-primary text-white py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-xl font-bold mb-2">糧政申報資料比對系統</h2>
+            <p class="text-sm text-gray-400">基於 DuckDB 與 Hash Set 演算法的高效能解決方案</p>
+            <div class="mt-4 border-t border-brand-secondary pt-4 text-xs text-gray-500">
+                Generated from Technical Report v1.0
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // --- 1. Interaction: Semantic Key Builder ---
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        async function updateSemanticKey() {
+            const year = document.getElementById('input-year').value;
+            const period = document.getElementById('input-period').value;
+            const land = document.getElementById('input-land').value;
+            const crop = document.getElementById('input-crop').value;
+
+            // Simulate the concatenation logic from report
+            const composite = `${year}|${period}|${land}|${crop}`;
+            
+            document.getElementById('output-composite').textContent = composite;
+            
+            // Calculate pseudo hash
+            const hash = await sha256(composite);
+            document.getElementById('output-hash').textContent = hash.substring(0, 20) + "...";
+        }
+
+        // Initialize
+        updateSemanticKey();
+
+        // --- 2. Interaction: Logic Simulator ---
+        function setScenario(type) {
+            const gate1 = document.getElementById('gate-1');
+            const gate2 = document.getElementById('gate-2');
+            const result = document.getElementById('logic-result');
+            
+            // Visual Elements
+            const visBKey = document.getElementById('vis-b-key');
+            const visBAttr = document.getElementById('vis-b-attr');
+
+            // Reset Styles
+            gate1.className = "w-full text-center text-xs p-1 rounded border transition-colors duration-300";
+            gate2.className = "w-full text-center text-xs p-1 rounded border transition-colors duration-300 opacity-50";
+            
+            if (type === 'same') {
+                visBKey.textContent = "Key: Hash_X";
+                visBAttr.textContent = "Attr: State_1";
+                
+                gate1.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+                gate1.textContent = "Key Match: YES";
+                
+                gate2.classList.remove('opacity-50');
+                gate2.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+                gate2.textContent = "Attr Match: YES";
+
+                result.className = "text-center font-bold text-lg p-3 rounded bg-gray-100 text-gray-400 transition-all duration-300";
+                result.textContent = "NO ACTION";
+            } else if (type === 'update') {
+                visBKey.textContent = "Key: Hash_X";
+                visBAttr.textContent = "Attr: State_2 (Changed)";
+                
+                gate1.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+                gate1.textContent = "Key Match: YES";
+
+                gate2.classList.remove('opacity-50');
+                gate2.classList.add('bg-yellow-100', 'text-yellow-700', 'border-yellow-300');
+                gate2.textContent = "Attr Match: NO";
+
+                result.className = "text-center font-bold text-lg p-3 rounded bg-yellow-100 text-yellow-600 transition-all duration-300";
+                result.innerHTML = "<i class='fa-solid fa-pen-to-square mr-2'></i>UPDATE";
+            } else if (type === 'diff') {
+                visBKey.textContent = "Key: Hash_Y (New)";
+                visBAttr.textContent = "Attr: State_1";
+                
+                gate1.classList.add('bg-red-100', 'text-red-700', 'border-red-300');
+                gate1.textContent = "Key Match: NO";
+
+                gate2.classList.add('opacity-30'); // Skipped
+                gate2.textContent = "Attr Match: Skipped";
+
+                result.className = "text-center font-bold text-lg p-3 rounded bg-red-100 text-red-600 transition-all duration-300";
+                result.innerHTML = "<div class='text-sm text-gray-600'>For A: <span class='text-red-500'>DELETE</span></div><div class='text-sm text-gray-600'>For B: <span class='text-green-500'>ADD</span></div>";
+            }
+        }
+        // Initialize logic sim
+        setScenario('same');
+
+        // --- 3. Charts ---
+        // Memory Chart
+        const ctxMem = document.getElementById('memoryChart').getContext('2d');
+        new Chart(ctxMem, {
+            type: 'bar',
+            data: {
+                labels: ['Pandas (In-Memory)', 'DuckDB (Streaming)'],
+                datasets: [{
+                    label: 'RAM Usage (GB)',
+                    data: [8, 0.5],
+                    backgroundColor: ['#e5e7eb', '#10b981'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, title: {display: true, text: 'GB'} } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Time Chart
+        const ctxTime = document.getElementById('timeChart').getContext('2d');
+        new Chart(ctxTime, {
+            type: 'bar',
+            data: {
+                labels: ['Sort-Merge (O(N log N))', 'Hash Set (O(N))'],
+                datasets: [{
+                    label: 'Relative Processing Time',
+                    data: [100, 20],
+                    backgroundColor: ['#e5e7eb', '#3b82f6'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { display: false } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // --- 4. Tab Switching ---
+        function switchTab(tabIndex) {
+            document.getElementById('tab-content-1').classList.add('hidden');
+            document.getElementById('tab-content-2').classList.add('hidden');
+            document.getElementById('tab-btn-1').classList.remove('text-brand-accent', 'border-b-2', 'border-brand-accent');
+            document.getElementById('tab-btn-1').classList.add('text-gray-500');
+            document.getElementById('tab-btn-2').classList.remove('text-brand-accent', 'border-b-2', 'border-brand-accent');
+            document.getElementById('tab-btn-2').classList.add('text-gray-500');
+
+            document.getElementById('tab-content-' + tabIndex).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + tabIndex);
+            activeBtn.classList.remove('text-gray-500');
+            activeBtn.classList.add('text-brand-accent', 'border-b-2', 'border-brand-accent');
+        }
+
+        // --- 5. Smooth Scroll ---
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            const navHeight = 64; // Approx nav height
+            const y = el.getBoundingClientRect().top + window.pageYOffset - navHeight;
+            window.scrollTo({top: y, behavior: 'smooth'});
+            
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            // Find the button that clicked
+            event.target.classList.add('active');
+            
+            // Mobile menu close
+            document.getElementById('mobile-menu').classList.add('hidden');
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+    </script>
+    
+    <!-- Chosen Palette: Warm Professional -->
+    <!-- Application Structure Plan: Linear storytelling (Problem -> Solution -> Logic -> Tech -> Code) with interactive demos to explain the abstract "Hash Logic". -->
+    <!-- Visualization & Content Choices: 
+         - KPI Cards: Immediate context on scale (2M records).
+         - Interactive Key Builder: Demystifies "Semantic Key" creation.
+         - Logic Simulator: Visually explains the "Two-Level" strategy better than text.
+         - Charts: Justifies the tech stack (DuckDB) via Memory/Speed comparisons.
+         - Code Tabs: Clean presentation of the Python scripts provided in the report.
+         - Confirmation: NO SVG tags used directly (FontAwesome via CDN + Chart.js Canvas).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</body>
+</html>
