@@ -209,6 +209,100 @@
             50% { opacity: 1; }
         }
 
+        /* 歷史字幕區域 */
+        .history-container {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .history-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .history-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .history-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .history-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .history-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: -1.5rem;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px);
+            z-index: 1;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            transition: all 0.2s;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(2px);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .history-item-text {
+            font-size: 1.125rem;
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+            word-wrap: break-word;
+        }
+
+        .history-item-time {
+            font-size: 0.75rem;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: #64748b;
+            font-size: 0.875rem;
+            padding: 2rem 1rem;
+        }
+
         /* 響應式設計 */
         @media (max-width: 768px) {
             body {
@@ -235,6 +329,19 @@
             .subtitle-container {
                 padding: 2rem 1rem;
                 min-height: 200px;
+            }
+
+            .history-container {
+                max-height: 300px;
+                padding: 1rem;
+            }
+
+            .history-item {
+                padding: 0.75rem;
+            }
+
+            .history-item-text {
+                font-size: 1rem;
             }
 
             #languageSelector {
@@ -288,6 +395,14 @@
             <div class="subtitle-meta">
                 <span>⏰ <span id="timestamp">--:--:--</span></span>
                 <span>📡 Session: <span id="sessionId">--</span></span>
+            </div>
+        </div>
+
+        <!-- 歷史字幕顯示區域 -->
+        <div class="history-container">
+            <div class="history-title">📜 歷史字幕</div>
+            <div id="historyList">
+                <div class="history-empty">尚無歷史字幕</div>
             </div>
         </div>
     </div>
@@ -391,6 +506,8 @@
                         let currentListener = null;
                         let lastUpdateTime = Date.now();
                         let noDataWarningShown = false;
+                        let historyItems = []; // 歷史字幕陣列
+                        const MAX_HISTORY = 50; // 最多保留 50 筆歷史
 
                         function startListening() {
                             // 移除舊監聽器
@@ -456,12 +573,71 @@
                             const subtitleElement = document.getElementById('subtitleText');
                             const timestampElement = document.getElementById('timestamp');
 
+                            // 🔥 如果目前有字幕且不是載入狀態，先將其加入歷史記錄
+                            const currentText = subtitleElement.textContent;
+                            const currentColor = subtitleElement.style.color;
+                            const currentTimestamp = timestampElement.textContent;
+                            
+                            if (currentText && 
+                                currentText !== '等待字幕...' && 
+                                currentText !== '等待會議開始...' &&
+                                !currentText.startsWith('等待') &&
+                                !currentText.startsWith('❌') &&
+                                !currentText.startsWith('⚠️') &&
+                                !subtitleElement.classList.contains('loading')) {
+                                
+                                addToHistory(currentText, currentColor, currentTimestamp);
+                            }
+
+                            // 更新目前字幕
                             subtitleElement.textContent = text;
                             subtitleElement.style.color = color;
                             subtitleElement.classList.remove('loading');
 
                             const date = new Date(timestamp * 1000);
                             timestampElement.textContent = date.toLocaleTimeString('zh-TW');
+                        }
+
+                        // 🔥 新增：將字幕加入歷史記錄
+                        function addToHistory(text, color, timeString) {
+                            // 建立歷史項目物件
+                            const historyItem = {
+                                text: text,
+                                color: color,
+                                time: timeString
+                            };
+
+                            // 加入陣列最前面（最新的在最上面）
+                            historyItems.unshift(historyItem);
+
+                            // 限制歷史數量
+                            if (historyItems.length > MAX_HISTORY) {
+                                historyItems = historyItems.slice(0, MAX_HISTORY);
+                            }
+
+                            // 更新 UI
+                            renderHistory();
+                        }
+
+                        // 🔥 新增：渲染歷史字幕列表
+                        function renderHistory() {
+                            const historyList = document.getElementById('historyList');
+                            
+                            if (historyItems.length === 0) {
+                                historyList.innerHTML = '<div class="history-empty">尚無歷史字幕</div>';
+                                return;
+                            }
+
+                            historyList.innerHTML = historyItems.map(item => `
+                                <div class="history-item">
+                                    <div class="history-item-text" style="color: ${item.color}">
+                                        ${item.text}
+                                    </div>
+                                    <div class="history-item-time">
+                                        ⏰ ${item.time}
+                                    </div>
+                                </div>
+                            `).join('');
                         }
 
                         // 連線狀態監控
