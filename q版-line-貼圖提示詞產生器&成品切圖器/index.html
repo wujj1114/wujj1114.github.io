@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q 版 LINE 貼圖提示詞產生器 & 成品切圖器</title>
+    <meta name="description" content="產生 Q 版 LINE 貼圖提示詞，並將 AI 產生的總表一鍵切圖、去背、打包下載。" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header">
+        <div class="app-header__icon">
+          <i data-lucide="sparkles"></i>
+        </div>
+        <div>
+          <h1>Q 版 LINE 貼圖提示詞產生器</h1>
+          <p>選好主題與設定，一鍵複製送給 AI 生圖。</p>
+        </div>
+      </header>
+
+      <div class="tab-switcher">
+        <button class="tab-button is-active" data-tab="generator">
+          <i data-lucide="sparkles"></i>
+          提示詞產生器
+        </button>
+        <button class="tab-button" data-tab="processor">
+          <i data-lucide="scissors"></i>
+          貼圖切圖 & 去背
+        </button>
+      </div>
+
+      <main>
+        <section id="tab-generator" class="tab-panel is-active">
+          <div class="panel-grid">
+            <div class="panel panel--left">
+              <div class="panel__header">
+                <i data-lucide="settings"></i>
+                設定項目 <span>(自動帶入 / 可手動修改)</span>
+              </div>
+              <div class="panel__body">
+                <div class="field-row">
+                  <label for="select-layout">
+                    <i data-lucide="layout"></i>
+                    排版設定
+                  </label>
+                  <select id="select-layout"></select>
+                </div>
+                <div class="field-row">
+                  <label for="select-topic">
+                    <i data-lucide="image"></i>
+                    主題模板
+                  </label>
+                  <select id="select-topic"></select>
+                </div>
+                <div class="field">
+                  <label for="input-character">
+                    <i data-lucide="palette"></i>
+                    角色設定
+                  </label>
+                  <input
+                    id="input-character"
+                    type="text"
+                    placeholder="例如：棕色捲髮、穿著黃色雨衣的少女"
+                  />
+                </div>
+                <div class="field">
+                  <label for="textarea-texts">
+                    <i data-lucide="type"></i>
+                    文字內容 <span>(用頓號或逗號分隔)</span>
+                  </label>
+                  <textarea id="textarea-texts" rows="4"></textarea>
+                </div>
+                <div class="field">
+                  <label for="textarea-actions">
+                    <i data-lucide="message-square"></i>
+                    動作建議
+                  </label>
+                  <textarea id="textarea-actions" rows="4"></textarea>
+                </div>
+
+                <div class="divider"></div>
+                <h3 class="section-title">進階視覺設定</h3>
+                <div class="field-grid">
+                  <div>
+                    <label for="select-fontsize">字體大小</label>
+                    <select id="select-fontsize"></select>
+                  </div>
+                  <div>
+                    <label for="select-border">描邊效果</label>
+                    <select id="select-border"></select>
+                  </div>
+                  <div>
+                    <label for="select-style">文字風格</label>
+                    <select id="select-style"></select>
+                  </div>
+                  <div>
+                    <label for="select-position">文字位置</label>
+                    <select id="select-position"></select>
+                  </div>
+                  <div class="field-grid__full">
+                    <label for="select-color">配色方案</label>
+                    <div class="color-row">
+                      <select id="select-color"></select>
+                      <input id="input-custom-color" type="text" placeholder="自訂顏色備註" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel panel--right">
+              <div class="panel__header panel__header--dark">
+                <div class="panel__title">
+                  <i data-lucide="copy"></i>
+                  生圖提示詞 (Prompt)
+                </div>
+                <button id="btn-copy" class="copy-button">
+                  <i data-lucide="copy"></i>
+                  點我複製提示詞
+                </button>
+              </div>
+              <div class="panel__body panel__body--prompt">
+                <textarea id="prompt-result" readonly spellcheck="false"></textarea>
+                <div class="prompt-hint">
+                  <i data-lucide="sparkles"></i>
+                </div>
+              </div>
+              <div class="tip-card">
+                <div class="tip-icon">
+                  <i data-lucide="info"></i>
+                </div>
+                <div>
+                  <strong>使用大師的小撇步：</strong>
+                  <p>
+                    複製成功後，請將完整文字貼到 ChatGPT (DALL-E 3)、Midjourney 或其他 AI
+                    繪圖工具中。如果發現角色細節不夠一致，建議在「角色設定」中加入：髮型、
+                    特定衣物配件或口頭禪描述，效果會更穩定。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-processor" class="tab-panel">
+          <div class="processor" id="processor">
+            <div id="upload-zone" class="upload-zone">
+              <input id="file-input" type="file" accept="image/*" hidden />
+              <div class="upload-icon"><i data-lucide="upload"></i></div>
+              <h2>上傳您的 AI 生圖總表</h2>
+              <p>支援 4×4 或 4×6 排版的 AI 生成大圖。系統將自動切圖、去背、加上白邊並打包為 LINE 規格 ZIP。</p>
+              <div class="upload-tags">
+                <span>PNG / JPG / WEBP</span>
+                <span>Max 1280px</span>
+              </div>
+            </div>
+
+            <div id="processor-panel" class="processor-panel hidden">
+              <div class="processor-header">
+                <div class="processor-summary">
+                  <div class="preview-wrap" id="original-preview"></div>
+                  <div>
+                    <h3>總表已就緒</h3>
+                    <div class="layout-switch">
+                      <span>切圖排版：</span>
+                      <div class="layout-buttons">
+                        <button data-layout="4x4" class="layout-button is-active">4x4</button>
+                        <button data-layout="4x6" class="layout-button">4x6</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="processor-actions">
+                  <button id="btn-split" class="primary">
+                    <i data-lucide="scissors"></i>
+                    開始自動切圖
+                  </button>
+                  <button id="btn-process" class="primary hidden">
+                    <i data-lucide="eraser"></i>
+                    一鍵全自動去背 + 加邊
+                  </button>
+                  <button id="btn-restore" class="secondary hidden">
+                    <i data-lucide="refresh-ccw"></i>
+                    全部還原原圖
+                  </button>
+                  <button id="btn-download" class="primary blue hidden">
+                    <i data-lucide="file-archive"></i>
+                    下載 LINE 規格 ZIP
+                  </button>
+                </div>
+              </div>
+
+              <div id="sticker-grid" class="sticker-grid"></div>
+              <div id="sticker-empty" class="sticker-empty hidden">
+                <i data-lucide="scissors"></i>
+                <p>請點擊上方「開始自動切圖」以預覽結果</p>
+              </div>
+            </div>
+
+            <div class="stats">
+              <div class="stat-card">
+                <div class="stat-icon blue"><i data-lucide="layout"></i></div>
+                <div>
+                  <h4>精準切圖</h4>
+                  <p>針對 AI 產圖常有的微偏移自動校正，確保每一格角色都在正中央。</p>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon green"><i data-lucide="eraser"></i></div>
+                <div>
+                  <h4>智慧去背</h4>
+                  <p>自動判斷綠幕或白底，進行去背與溢色消除，讓角色邊緣乾淨自然。</p>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon purple"><i data-lucide="file-archive"></i></div>
+                <div>
+                  <h4>打包輸出</h4>
+                  <p>自動產生 370x320 貼圖及 240x240/96x74 縮圖，符合 LINE 官方規格。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        Designed for LINE Sticker Creators • Powered by Creative Workflows
+      </footer>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
+
