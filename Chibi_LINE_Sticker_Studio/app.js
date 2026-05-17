@@ -827,11 +827,11 @@
 貼圖文字：
 ${visibleTexts || state.texts}
 
-重要：${state.layout} 請只使用前 ${gridCount} 句文字，從左到右、從上到下排列。
+重要：${state.layout} 請只使用前 ${gridCount} 句文字(有少請依整體風格補滿)，從左到右、從上到下排列。
 
 文字樣式：文字請使用繁體中文，字體要${state.fontSize}、粗體、可愛清楚。文字顏色使用「${state.fontColor}」。${stylePrompt}每個字都要有${state.border}，讓文字在白色背景與角色旁邊都清楚可讀。文字位置使用${state.textPosition}，但不可遮住角色臉部。若使用彩色、漸層或每格不同顏色，請讓顏色搭配主題，不要過於雜亂。${extraColorNote}
 
-限制：不要簡體中文、不要亂字、不要多字、不要英文字、不要浮水印、不要 Logo。
+限制：不要簡體中文、不要亂字、不要多字、不要英文字（除非我要求的文字）、不要浮水印、不要 Logo。
 
 安全距離：請加大每格之間的留白與安全距離，人物和文字都不要靠太近邊界。每張小貼圖都要完整置中，方便後續切割成獨立 LINE 貼圖。
 
@@ -980,28 +980,9 @@ ${state.actions}
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        const maxSize = 1280;
-        if (img.width > maxSize || img.height > maxSize) {
-          const canvas = document.createElement("canvas");
-          const scale = Math.min(maxSize / img.width, maxSize / img.height);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const resized = new Image();
-            resized.onload = () => {
-              imageState.originalImage = resized;
-              imageState.stickers = [];
-              updateProcessorView();
-            };
-            resized.src = canvas.toDataURL("image/png");
-          }
-        } else {
-          imageState.originalImage = img;
-          imageState.stickers = [];
-          updateProcessorView();
-        }
+        imageState.originalImage = img;
+        imageState.stickers = [];
+        updateProcessorView();
       };
       img.src = event.target.result;
     };
