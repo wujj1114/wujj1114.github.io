@@ -197,6 +197,46 @@
                 </div>
               </div>
 
+              <div class="grid-adjust-panel">
+                <div class="grid-preview">
+                  <div class="grid-preview__canvas" id="preview-canvas-wrap">
+                    <canvas id="preview-canvas"></canvas>
+                    <canvas id="preview-grid"></canvas>
+                  </div>
+                  <div class="grid-preview__meta">
+                    <span id="preview-size">原圖：-</span>
+                    <span id="preview-cell">格子：-</span>
+                  </div>
+                </div>
+                <div class="grid-controls">
+                  <div class="grid-controls__group">
+                    <div class="grid-controls__title">整體平移 (px)</div>
+                    <div class="grid-controls__row">
+                      <label for="grid-shift-x">X</label>
+                      <input id="grid-shift-x" type="number" step="1" value="0" />
+                      <label for="grid-shift-y">Y</label>
+                      <input id="grid-shift-y" type="number" step="1" value="0" />
+                    </div>
+                  </div>
+                  <div class="grid-controls__group">
+                    <div class="grid-controls__title">四邊偏移 (px)</div>
+                    <div class="grid-controls__row">
+                      <label for="grid-inset-top">上</label>
+                      <input id="grid-inset-top" type="number" step="1" value="0" />
+                      <label for="grid-inset-right">右</label>
+                      <input id="grid-inset-right" type="number" step="1" value="0" />
+                    </div>
+                    <div class="grid-controls__row">
+                      <label for="grid-inset-bottom">下</label>
+                      <input id="grid-inset-bottom" type="number" step="1" value="0" />
+                      <label for="grid-inset-left">左</label>
+                      <input id="grid-inset-left" type="number" step="1" value="0" />
+                    </div>
+                  </div>
+                  <button id="grid-reset" class="secondary">重置網格</button>
+                </div>
+              </div>
+
               <div id="sticker-grid" class="sticker-grid"></div>
               <div id="sticker-empty" class="sticker-empty hidden">
                 <i data-lucide="scissors"></i>

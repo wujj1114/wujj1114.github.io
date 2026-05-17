@@ -693,6 +693,8 @@
     styles: STYLES_DB.map((style) => style.name)
   };
 
+  const PREVIEW_MAX_WIDTH = 520;
+
   const state = {
     layout: "4x4",
     selectedTopicId: "couple",
@@ -715,7 +717,15 @@
     isProcessing: false,
     progress: 0,
     bgType: "green",
-    isZipping: false
+    isZipping: false,
+    grid: {
+      shiftX: 0,
+      shiftY: 0,
+      insetTop: 0,
+      insetRight: 0,
+      insetBottom: 0,
+      insetLeft: 0
+    }
   };
 
   const el = {
@@ -741,6 +751,18 @@
     fileInput: document.getElementById("file-input"),
     processorPanel: document.getElementById("processor-panel"),
     originalPreview: document.getElementById("original-preview"),
+    previewWrap: document.getElementById("preview-canvas-wrap"),
+    previewCanvas: document.getElementById("preview-canvas"),
+    previewGrid: document.getElementById("preview-grid"),
+    previewSize: document.getElementById("preview-size"),
+    previewCell: document.getElementById("preview-cell"),
+    gridShiftX: document.getElementById("grid-shift-x"),
+    gridShiftY: document.getElementById("grid-shift-y"),
+    gridInsetTop: document.getElementById("grid-inset-top"),
+    gridInsetRight: document.getElementById("grid-inset-right"),
+    gridInsetBottom: document.getElementById("grid-inset-bottom"),
+    gridInsetLeft: document.getElementById("grid-inset-left"),
+    gridReset: document.getElementById("grid-reset"),
     layoutButtons: document.querySelectorAll(".layout-button"),
     splitButton: document.getElementById("btn-split"),
     processButton: document.getElementById("btn-process"),
@@ -982,6 +1004,7 @@ ${state.actions}
       img.onload = () => {
         imageState.originalImage = img;
         imageState.stickers = [];
+        resetGridAdjustments();
         updateProcessorView();
       };
       img.src = event.target.result;
@@ -989,10 +1012,158 @@ ${state.actions}
     reader.readAsDataURL(file);
   };
 
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  const toNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const syncGridInputs = () => {
+    if (!el.gridShiftX) return;
+    el.gridShiftX.value = imageState.grid.shiftX;
+    el.gridShiftY.value = imageState.grid.shiftY;
+    el.gridInsetTop.value = imageState.grid.insetTop;
+    el.gridInsetRight.value = imageState.grid.insetRight;
+    el.gridInsetBottom.value = imageState.grid.insetBottom;
+    el.gridInsetLeft.value = imageState.grid.insetLeft;
+  };
+
+  const resetGridAdjustments = () => {
+    imageState.grid = {
+      shiftX: 0,
+      shiftY: 0,
+      insetTop: 0,
+      insetRight: 0,
+      insetBottom: 0,
+      insetLeft: 0
+    };
+    syncGridInputs();
+  };
+
+  const getGridMetrics = () => {
+    if (!imageState.originalImage) return null;
+
+    const cols = 4;
+    const rows = imageState.layout === "4x4" ? 4 : 6;
+    const originalW = imageState.originalImage.width;
+    const originalH = imageState.originalImage.height;
+    const insetLeft = Math.max(0, imageState.grid.insetLeft);
+    const insetRight = Math.max(0, imageState.grid.insetRight);
+    const insetTop = Math.max(0, imageState.grid.insetTop);
+    const insetBottom = Math.max(0, imageState.grid.insetBottom);
+
+    const rawCropW = originalW - insetLeft - insetRight;
+    const rawCropH = originalH - insetTop - insetBottom;
+    const isValid = rawCropW > 0 && rawCropH > 0;
+    const cropW = Math.max(1, rawCropW);
+    const cropH = Math.max(1, rawCropH);
+    const maxShiftX = Math.max(0, originalW - cropW);
+    const maxShiftY = Math.max(0, originalH - cropH);
+    const cropX = clamp(insetLeft + imageState.grid.shiftX, 0, maxShiftX);
+    const cropY = clamp(insetTop + imageState.grid.shiftY, 0, maxShiftY);
+
+    return {
+      cols,
+      rows,
+      originalW,
+      originalH,
+      cropX,
+      cropY,
+      cropW,
+      cropH,
+      isValid,
+      cellW: cropW / cols,
+      cellH: cropH / rows
+    };
+  };
+
+  const renderPreview = () => {
+    if (!imageState.originalImage || !el.previewCanvas || !el.previewGrid || !el.previewWrap) return;
+
+    const originalW = imageState.originalImage.width;
+    const originalH = imageState.originalImage.height;
+    const maxWidth = Math.max(240, Math.min(PREVIEW_MAX_WIDTH, window.innerWidth - 80));
+    const scale = maxWidth / originalW;
+    const previewW = Math.round(originalW * scale);
+    const previewH = Math.round(originalH * scale);
+
+    el.previewWrap.style.width = `${previewW}px`;
+    el.previewWrap.style.height = `${previewH}px`;
+    el.previewCanvas.width = previewW;
+    el.previewCanvas.height = previewH;
+    el.previewGrid.width = previewW;
+    el.previewGrid.height = previewH;
+
+    const pCtx = el.previewCanvas.getContext("2d");
+    if (pCtx) {
+      pCtx.clearRect(0, 0, previewW, previewH);
+      pCtx.drawImage(imageState.originalImage, 0, 0, previewW, previewH);
+    }
+
+    const gridCtx = el.previewGrid.getContext("2d");
+    if (!gridCtx) return;
+    gridCtx.clearRect(0, 0, previewW, previewH);
+
+    const metrics = getGridMetrics();
+    if (!metrics) return;
+    if (!metrics.isValid) {
+      if (el.previewCell) el.previewCell.textContent = "格子：無效";
+      return;
+    }
+
+    const previewScale = previewW / metrics.originalW;
+    const startX = metrics.cropX * previewScale;
+    const startY = metrics.cropY * previewScale;
+    const cellW = metrics.cellW * previewScale;
+    const cellH = metrics.cellH * previewScale;
+    const gridW = metrics.cropW * previewScale;
+    const gridH = metrics.cropH * previewScale;
+
+    gridCtx.strokeStyle = "rgba(236, 72, 153, 0.7)";
+    gridCtx.lineWidth = 1;
+    gridCtx.strokeRect(startX, startY, gridW, gridH);
+
+    gridCtx.strokeStyle = "rgba(124, 58, 237, 0.35)";
+    for (let c = 1; c < metrics.cols; c++) {
+      const x = startX + c * cellW;
+      gridCtx.beginPath();
+      gridCtx.moveTo(x, startY);
+      gridCtx.lineTo(x, startY + gridH);
+      gridCtx.stroke();
+    }
+    for (let r = 1; r < metrics.rows; r++) {
+      const y = startY + r * cellH;
+      gridCtx.beginPath();
+      gridCtx.moveTo(startX, y);
+      gridCtx.lineTo(startX + gridW, y);
+      gridCtx.stroke();
+    }
+
+    if (el.previewSize) {
+      el.previewSize.textContent = `原圖：${metrics.originalW} x ${metrics.originalH}`;
+    }
+    if (el.previewCell) {
+      el.previewCell.textContent = `格子：${metrics.cellW.toFixed(2)} x ${metrics.cellH.toFixed(2)}`;
+    }
+  };
+
+  const updateGridFromInputs = () => {
+    if (!el.gridShiftX) return;
+    imageState.grid.shiftX = toNumber(el.gridShiftX.value);
+    imageState.grid.shiftY = toNumber(el.gridShiftY.value);
+    imageState.grid.insetTop = toNumber(el.gridInsetTop.value);
+    imageState.grid.insetRight = toNumber(el.gridInsetRight.value);
+    imageState.grid.insetBottom = toNumber(el.gridInsetBottom.value);
+    imageState.grid.insetLeft = toNumber(el.gridInsetLeft.value);
+    renderPreview();
+  };
+
   const updateProcessorView = () => {
     if (!imageState.originalImage) {
       el.uploadZone.classList.remove("hidden");
       el.processorPanel.classList.add("hidden");
+      if (el.originalPreview) el.originalPreview.innerHTML = "";
       return;
     }
 
@@ -1003,6 +1174,8 @@ ${state.actions}
     img.src = imageState.originalImage.src;
     img.alt = "preview";
     el.originalPreview.appendChild(img);
+    syncGridInputs();
+    renderPreview();
     updateHeaderButtons();
     renderStickers();
   };
@@ -1027,14 +1200,16 @@ ${state.actions}
   const splitGrid = () => {
     if (!imageState.originalImage) return;
 
-    const cols = 4;
-    const rows = imageState.layout === "4x4" ? 4 : 6;
-    const cellWidth = imageState.originalImage.width / cols;
-    const cellHeight = imageState.originalImage.height / rows;
+    const metrics = getGridMetrics();
+    if (!metrics) return;
+    if (!metrics.isValid) {
+      setToast("網格裁切範圍無效，請調整偏移值", "error");
+      return;
+    }
 
     const checkCanvas = document.createElement("canvas");
-    checkCanvas.width = imageState.originalImage.width;
-    checkCanvas.height = imageState.originalImage.height;
+    checkCanvas.width = metrics.originalW;
+    checkCanvas.height = metrics.originalH;
     const checkCtx = checkCanvas.getContext("2d");
     let detectedType = "green";
     if (checkCtx) {
@@ -1050,8 +1225,8 @@ ${state.actions}
     }
 
     const newStickers = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < metrics.rows; r++) {
+      for (let c = 0; c < metrics.cols; c++) {
         const canvas = document.createElement("canvas");
         canvas.width = 370;
         canvas.height = 320;
@@ -1063,14 +1238,14 @@ ${state.actions}
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
 
-          const sourceX = c * cellWidth;
-          const sourceY = r * cellHeight;
+          const sourceX = metrics.cropX + c * metrics.cellW;
+          const sourceY = metrics.cropY + r * metrics.cellH;
           ctx.drawImage(
             imageState.originalImage,
             sourceX,
             sourceY,
-            cellWidth,
-            cellHeight,
+            metrics.cellW,
+            metrics.cellH,
             0,
             0,
             canvas.width,
@@ -1078,7 +1253,7 @@ ${state.actions}
           );
 
           newStickers.push({
-            id: r * cols + c + 1,
+            id: r * metrics.cols + c + 1,
             originalCanvas: canvas,
             processedCanvas: null,
             mainThumbnail: null,
@@ -1517,8 +1692,32 @@ ${state.actions}
       button.addEventListener("click", () => {
         imageState.layout = button.dataset.layout;
         el.layoutButtons.forEach((btn) => btn.classList.toggle("is-active", btn === button));
+        resetGridAdjustments();
+        renderPreview();
       });
     });
+
+    if (el.gridShiftX) {
+      [
+        el.gridShiftX,
+        el.gridShiftY,
+        el.gridInsetTop,
+        el.gridInsetRight,
+        el.gridInsetBottom,
+        el.gridInsetLeft
+      ].forEach((input) => {
+        input.addEventListener("input", updateGridFromInputs);
+      });
+
+      el.gridReset.addEventListener("click", () => {
+        resetGridAdjustments();
+        renderPreview();
+      });
+
+      window.addEventListener("resize", () => {
+        renderPreview();
+      });
+    }
 
     el.splitButton.addEventListener("click", splitGrid);
     el.processButton.addEventListener("click", processAll);
